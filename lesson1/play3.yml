@@ -1,0 +1,89 @@
+---
+- name: GRUB conf modification
+  hosts: rhost1
+  become: yes
+  become_method: sudo
+  vars:
+    grub_conf: "/etc/default/grub"
+    grub_cmdline: "GRUB_CMDLINE_LINUX"
+    kern_opts:
+      - name: "net.ifnames"
+        value: "=0"
+      - name: "biosdevname"
+        value: "=0"
+      - name: "test"
+        enabled: no
+      - name: "quiet"
+
+  tasks:
+    - name: check conf and var exist
+      lineinfile:
+        path: "{{ grub_conf }}"
+        state: absent
+        regexp: "^{{ grub_cmdline }}="
+      check_mode: true
+      register: grub_cmdline_check
+
+    - name: make sure conf and var exist
+      lineinfile:
+        path: "{{ grub_conf }}"
+        backup: yes
+        state: present
+        create: yes
+        group: root
+        owner: root
+        mode: 0644
+        line: '{{ grub_cmdline }}=""'
+      when: grub_cmdline_check.found == 0
+
+    - name: check if options exist already or not
+      lineinfile:
+        path: "{{ grub_conf }}"
+        state: absent
+        regexp: "^({{ grub_cmdline }}=\".*?)({{ item.name }}(=[^ \t]+)?)(.*\")$"
+      check_mode: true
+      loop: "{{ kern_opts }}"
+      register: kern_opts_check
+
+    - name: reset kernel options which are already there
+      lineinfile:
+        path: "{{ grub_conf }}"
+        regexp: "^({{ grub_cmdline }}=\".*?)({{ item.item.name }}(=[^ \t]+)?)(.*\")$"
+        backrefs: yes
+        line: "\\1{{ item.item.name }}{{ item.item.value | default('') }}\\4"
+      notify: update grub
+      when:
+        - item.found == 1
+        - item.item.enabled is not defined or item.item.enabled
+      with_items: "{{ kern_opts_check.results }}"
+
+    - name: add kernel option(s) which are not there yet
+      lineinfile:
+        path: "{{ grub_conf }}"
+        state: present
+        regexp: "^({{ grub_cmdline }}=\".*)\"$"
+        backrefs: yes
+        line: "\\1 {{ item.item.name }}{{ item.item.value | default('') }}\""
+      notify: update grub
+      when:
+        - item.found == 0
+        - item.item.enabled is not defined or item.item.enabled
+      with_items: "{{ kern_opts_check.results }}"
+
+    - name: remove kernel options which are there and should not be enabled
+      lineinfile:
+        path: "{{ grub_conf }}"
+        regexp: "^({{ grub_cmdline }}=\".*?)({{ item.item.name }}(=[^ \t]+)?)(.*\")$"
+        backrefs: yes
+        line: '\1\4'
+      notify: update grub
+      when:
+        - item.found == 1
+        - item.item.enabled is defined
+        - not item.item.enabled
+      with_items: "{{ kern_opts_check.results }}"
+
+  handlers:
+    - name: update grub
+      shell:
+        cmd: /usr/sbin/grub2-mkconfig

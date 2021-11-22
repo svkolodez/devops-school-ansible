@@ -1,0 +1,73 @@
+---
+
+
+- name: Apache installation (L3)
+  hosts: rhost1
+  become: yes
+  become_method: sudo
+  gather_facts: yes
+
+  tasks:
+    - include_vars: os_redhat.yml
+      when: ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+
+    - include_vars: os_debian.yml
+      when: ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+    - name: package setup/update
+      package:
+        name: "{{ apache['pkg'] }}"
+        state: latest
+
+    - name: service enabling
+      service:
+        name: "{{ apache.service }}"
+        enabled: yes
+        state: started
+
+    - name: copy welcome page
+      template:
+        dest: /var/www/html/index.html
+        owner: apache
+        mode: 0644
+        src: index.html.j2
+        backup: yes
+
+    - name: enable firewalld and open ports
+      firewalld:
+        service: "{{ item }}"
+        permanent: yes
+        state: enabled
+      notify: restart firewalld
+      loop:
+        - http
+        - https
+      when:
+        - ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+        - ansible_distribution_major_version == "7" or ansible_distribution_major_version == "8"
+
+    - name: open ports with UFW
+      ufw:
+        rule: "allow"
+        port: "{{ item }}"
+        proto: "tcp"
+      with_items:
+        - "ssh"
+        - "80"
+        - "443"
+      when:
+        - ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+    - name: enable UFW
+      ufw:
+        state: "enabled"
+        policy: "deny"
+        logging: "on"
+      when:
+        - ansible_distribution == "Ubuntu" or ansible_distribution == "Debian"
+
+  handlers:
+    - name: restart firewalld
+      service:
+        name: firewalld
+        state: restarted

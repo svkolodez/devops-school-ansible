@@ -1,0 +1,13 @@
+<pre>
+<h1>Welcome to my web server <b>{{ ansible_fqdn |upper }}</b> !</h1>
+
+<h2>It's running on {{ ansible_distribution }} {{ ansible_distribution_version }} !
+
+
+The server may be reached via <b>next</b> URIs:</h2>
+<h3>
+{% for ip in ansible_all_ipv4_addresses %}
+- <a href="http://{{ ip }}">{{ ip }}</a><br>
+{% endfor %}
+</h3>
+</pre>

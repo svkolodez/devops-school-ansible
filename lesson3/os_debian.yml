@@ -1,0 +1,5 @@
+---
+
+apache:
+  pkg: apache2
+  service: apache2

@@ -2,6 +2,7 @@
 
 - name: GRUB conf modification
 
+  hosts: all
   become: yes
   become_method: sudo
 

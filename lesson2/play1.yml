@@ -2,6 +2,7 @@
 
 - name: Users creation
 
+  hosts: all
   become: yes
   become_method: sudo
 

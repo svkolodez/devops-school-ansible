@@ -1,6 +1,8 @@
 ---
 
 - name: Apache installation (L3)
+
+  hosts: all
   become: yes
   become_method: sudo
   gather_facts: yes

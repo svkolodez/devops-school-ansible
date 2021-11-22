@@ -1,0 +1,30 @@
+---
+- name: Apache removal
+  hosts: rhost1
+  become: yes
+  become_method: sudo
+
+  tasks:
+    - name: package removal
+      yum:
+        name: httpd
+        state: absent
+    - name: remove welcome page
+      file:
+        path: /var/www/html/index.html
+        state: absent
+    - name: close ports
+      firewalld:
+        service: "{{ item }}"
+        permanent: yes
+        state: disabled
+      notify: restart firewalld
+      loop:
+        - http
+        - https
+
+  handlers:
+    - name: restart firewalld
+      service:
+        name: firewalld
+        state: restarted

@@ -1,0 +1,81 @@
+---
+
+- name: VSFTPd installation
+
+  hosts: all
+  become: yes
+  become_method: sudo
+
+  vars:
+    sebooleans:
+      - ftpd_anon_write
+      - ftpd_connect_all_unreserved
+      - ftpd_use_passive_mode
+
+  tasks:
+
+    - name: package setup/update
+      package:
+        name: vsftpd
+        state: present
+
+    - name: create upload dir
+      file:
+        path: /var/ftp/pub/upload
+        state: directory
+        mode: 0730
+        owner: root
+        group: root
+
+    - name: open ftp port
+      firewalld:
+        service: ftp
+        permanent: yes
+        state: enabled
+      notify: restart firewalld
+
+    - name: open ports for passive mode
+      firewalld:
+        port: "65400-65410/tcp"
+        permanent: yes
+        state: enabled
+      notify: restart firewalld
+
+    - name: setup python3-libsemanage
+      yum:
+        name: python3-libsemanage
+        state: present
+
+    - name: set SE booleans on
+      seboolean:
+        name: "{{ item }}"
+        state: yes
+        persistent: yes
+      loop: "{{ sebooleans }}"
+
+    - name: copy config
+      template:
+        dest: /etc/vsftpd/vsftpd.conf
+        owner: root
+        mode: 0600
+        src: vsftpd.conf.j2
+        backup: yes
+      notify: restart vsftpd
+
+    - name: service start
+      service:
+        name: vsftpd
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart firewalld
+      service:
+        name: firewalld
+        enabled: yes
+        state: restarted
+
+    - name: restart vsftpd
+      service:
+        name: vsftpd
+        state: restarted

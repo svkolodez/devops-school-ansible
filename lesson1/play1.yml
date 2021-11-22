@@ -1,6 +1,7 @@
 ---
+
 - name: Apache installation
-  hosts: rhost1
+
   become: yes
   become_method: sudo
 

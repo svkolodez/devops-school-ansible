@@ -1,8 +1,10 @@
 ---
+
 - name: GRUB conf modification
-  hosts: rhost1
+
   become: yes
   become_method: sudo
+
   vars:
     grub_conf: "/etc/default/grub"
     grub_cmdline: "GRUB_CMDLINE_LINUX"

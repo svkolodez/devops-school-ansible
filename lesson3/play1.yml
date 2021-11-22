@@ -1,8 +1,6 @@
 ---
 
-
 - name: Apache installation (L3)
-  hosts: rhost1
   become: yes
   become_method: sudo
   gather_facts: yes

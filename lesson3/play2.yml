@@ -11,47 +11,78 @@
       - ftpd_anon_write
       - ftpd_connect_all_unreserved
       - ftpd_use_passive_mode
+    ftp_path: "/var/ftp/pub"
+    ftp_conf:
+      local_enable: "NO"
+      write_enable: "YES"
+      anonymous_enable: "YES"
+      anon_upload_enable: "YES"
+      anon_other_write_enable: "YES"
+      anon_mkdir_write_enable: "NO"
+      anon_umask: "077"
+      no_anon_password: "YES"
+      anon_root: "{{ ftp_path }}"
+      chown_uploads: "YES"
+      chown_username: "ftp"
+      dirmessage_enable: "YES"
+      data_connection_timeout: "30"
+      connect_from_port_20: "YES"
+      listen: "YES"
+      listen_ipv6: "NO"
+      pam_service_name: "vsftpd"
+      pasv_enable: "YES"
+      pasv_min_port: "65400"
+      pasv_max_port: "65410"
 
   tasks:
-
     - name: package setup/update
       package:
-        name: vsftpd
+        name:
+          - vsftpd
+          - python3-libsemanage
+          - python3-policycoreutils
         state: present
 
-    - name: create upload dir
+    - name: open ports
+      firewalld:
+        port: "{{ item }}"
+        permanent: yes
+        state: enabled
+      notify: restart firewalld
+      loop:
+        - "20-21/tcp"
+        - "65400-65410/tcp"
+
+    - name: set options for pub
       file:
-        path: /var/ftp/pub/upload
+        path: "{{ ftp_path }}"
         state: directory
-        mode: 0730
+        mode: 0755
         owner: root
         group: root
 
-    - name: open ftp port
-      firewalld:
-        service: ftp
-        permanent: yes
-        state: enabled
-      notify: restart firewalld
-
-    - name: open ports for passive mode
-      firewalld:
-        port: "65400-65410/tcp"
-        permanent: yes
-        state: enabled
-      notify: restart firewalld
-
-    - name: setup python3-libsemanage
-      yum:
-        name: python3-libsemanage
-        state: present
-
-    - name: set SE booleans on
+    - name: set SELinux booleans
       seboolean:
         name: "{{ item }}"
         state: yes
         persistent: yes
       loop: "{{ sebooleans }}"
+
+    - name: create upload dir
+      file:
+        path: "{{ ftp_path }}/upload"
+        state: directory
+        mode: 0777
+        owner: root
+        group: root
+
+    - name: set SELinux context
+      sefcontext:
+        target: "{{ ftp_path }}/upload"
+        setype: public_content_rw_t
+        state: present
+        reload: yes
+      notify: restorecon
 
     - name: copy config
       template:
@@ -61,6 +92,12 @@
         src: vsftpd.conf.j2
         backup: yes
       notify: restart vsftpd
+
+    - name: create/update ftp user
+      user:
+        name: ftp
+        home: "{{ ftp_path }}"
+        shell: /usr/bin/false
 
     - name: service start
       service:
@@ -79,3 +116,6 @@
       service:
         name: vsftpd
         state: restarted
+
+    - name: restorecon
+      command: "restorecon -v /var/ftp/pub/upload"

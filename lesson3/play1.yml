@@ -25,6 +25,10 @@
         enabled: yes
         state: started
 
+    - name: gather packages facts
+      package_facts:
+        manager: auto
+
     - name: copy welcome page
       template:
         dest: /var/www/html/index.html

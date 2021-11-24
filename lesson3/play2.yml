@@ -53,11 +53,23 @@
         - "20-21/tcp"
         - "65400-65410/tcp"
 
-    - name: set options for pub
+    - name: set options for pub dir
       file:
         path: "{{ ftp_path }}"
         state: directory
         mode: 0755
+        owner: root
+        group: root
+
+    - name: gather packages facts
+      package_facts:
+        manager: auto
+
+    - name: put a welcome file into pub dir
+      template:
+        src: "welcome.txt.j2"
+        dest: "{{ ftp_path }}/welcome.txt"
+        mode: 0644
         owner: root
         group: root
 

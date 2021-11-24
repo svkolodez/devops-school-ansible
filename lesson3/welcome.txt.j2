@@ -1,0 +1,13 @@
+Welcome to my ftp server {{ ansible_fqdn |upper }} !
+
+It's running on VSFTPd {{ ansible_facts['packages']['vsftpd'][0]['version'] }} under {{ ansible_distribution }} {{ ansible_distribution_version }} !
+
+The server may be reached via the next IPs:
+
+{% for ip in ansible_all_ipv4_addresses %}
+- {{ ip }}
+{% endfor %}
+
+Only anonymous logins are allowed, you can upload your files to the upload dir, rename them there and delete only.
+
+Thanks.
